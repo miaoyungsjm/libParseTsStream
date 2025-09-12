@@ -1,12 +1,13 @@
 package com.excellence.ggz.libparsetsstream.Section;
 
+import static com.excellence.ggz.libparsetsstream.Packet.PacketManager.PACKET_LENGTH_204;
+
+import com.excellence.ggz.libparsetsstream.Interface.OnParseListener;
 import com.excellence.ggz.libparsetsstream.Logger.LoggerManager;
 import com.excellence.ggz.libparsetsstream.Packet.Packet;
 import com.excellence.ggz.libparsetsstream.Section.entity.Section;
 
 import java.util.HashMap;
-
-import static com.excellence.ggz.libparsetsstream.Packet.PacketManager.PACKET_LENGTH_204;
 
 
 /**
@@ -22,7 +23,7 @@ public abstract class AbstractSectionManager {
 
     private HashMap<Integer, Section> mSectionMap = new HashMap<>();
 
-    public OnParseListener mParseListener = null;
+    public OnParseListener mOnParseListener = null;
 
     public final LoggerManager mLogger = LoggerManager.getInstance();
 
@@ -108,7 +109,7 @@ public abstract class AbstractSectionManager {
 
             if (section != null) {
                 mLogger.debug(AbstractSectionManager.class.getName(),
-                        "[assembleSection] working...\n" + section.toString());
+                        "[AbstractSection] assembleSection working...\n" + section.toString());
                 if (section.getRemainLength() == 0) {
                     parseSection(section);
                 }
@@ -121,10 +122,6 @@ public abstract class AbstractSectionManager {
     public abstract void parseSection(Section section);
 
     public void setOnParseListener(OnParseListener listener) {
-        mParseListener = listener;
-    }
-
-    public interface OnParseListener {
-        void onFinish(Section section);
+        mOnParseListener = listener;
     }
 }

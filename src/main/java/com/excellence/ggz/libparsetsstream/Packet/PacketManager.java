@@ -30,6 +30,7 @@ public class PacketManager extends Observable {
     private final LoggerManager mLogger;
     private int mPacketStartPosition = -1;
     private int mPacketLength = -1;
+    private boolean mIsInterrupt = false;
     private final List<Integer> mFilterPidList = new ArrayList<>();
 
     public static PacketManager getInstance() {
@@ -130,13 +131,14 @@ public class PacketManager extends Observable {
         }
 
         mLogger.debug(TAG, "[matchPacketLength] packetStartPosition: " + mPacketStartPosition + "\n" +
-                "[matchPacketLength] packetLength: " + mPacketLength + "\n");
+                "[matchPacketLength] packetLength: " + mPacketLength);
         return mPacketLength;
     }
 
     public void filterPacket(String filePath, List<Integer> filterList) {
         mFilterPidList.clear();
         mFilterPidList.addAll(filterList);
+        mIsInterrupt = false;
 
         if (mPacketLength == -1 || mPacketStartPosition == -1) {
             mLogger.error(TAG, "[filterPacketByPid] packetLength packetStartPosition IllegalArgument");
@@ -158,7 +160,13 @@ public class PacketManager extends Observable {
             byte[] buff = new byte[packetLength * 50];
             int len;
             while ((len = bis.read(buff)) != -1) {
+                if (mIsInterrupt) {
+                    break;
+                }
                 for (int i = 0; i < len / packetLength; i++) {
+                    if (mIsInterrupt) {
+                        break;
+                    }
                     byte[] onePacket = new byte[packetLength];
                     System.arraycopy(buff, packetLength * i, onePacket, 0, packetLength);
                     if (onePacket[0] == PACKET_HEADER_SYNC_BYTE) {
@@ -188,11 +196,8 @@ public class PacketManager extends Observable {
         }
     }
 
-    public void addFilterPid(int pid) {
-        mFilterPidList.add(pid);
-    }
-
     public void removeFilterPid(int pid) {
+        mLogger.debug(TAG, "[PacketManager] removeFilterPid: 0x" + toHexString(pid));
         // fix ConcurrentModificationException
         Iterator<Integer> it = mFilterPidList.iterator();
         while (it.hasNext()) {
@@ -200,6 +205,10 @@ public class PacketManager extends Observable {
             if (integer == pid) {
                 it.remove();
             }
+        }
+        if (mFilterPidList.isEmpty()) {
+            mLogger.debug(TAG, "[PacketManager] mIsInterrupt = true\n");
+            mIsInterrupt = true;
         }
     }
 

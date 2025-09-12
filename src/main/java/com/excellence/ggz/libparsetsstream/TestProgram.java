@@ -12,7 +12,7 @@ public class TestProgram {
     private static final String TAG = TestProgram.class.getName();
 
     public static void main(String[] args) {
-        ParesTsStream paresTsStream = TsManager.getInstance();
+        ParesTsStream paresTsStream = new DvbManager();
         String json = paresTsStream.parseTsStreamByFile(INPUT_FILE1_PATH);
 
         LoggerManager logger = LoggerManager.getInstance();

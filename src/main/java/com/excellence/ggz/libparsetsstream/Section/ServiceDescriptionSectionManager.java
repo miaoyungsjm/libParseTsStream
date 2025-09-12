@@ -40,7 +40,7 @@ public class ServiceDescriptionSectionManager extends AbstractSectionManager imp
 
     @Override
     public void parseSection(Section section) {
-        mLogger.debug(TAG, "[SDS] parse Section");
+        mLogger.debug(TAG, "[SDS] parseSection working...");
 
         int pid = section.getPid();
         int tableId = section.getTableId();
@@ -68,8 +68,8 @@ public class ServiceDescriptionSectionManager extends AbstractSectionManager imp
                 sectionNumber, lastSectionNumber, originalNetworkId, serviceList,
                 crc32);
 
-        if (mParseListener != null) {
-            mParseListener.onFinish(sds);
+        if (mOnParseListener != null) {
+            mOnParseListener.onFinish(sds, pid);
         }
     }
 

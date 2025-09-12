@@ -1,18 +1,20 @@
 package com.excellence.ggz.libparsetsstream.Section;
 
+import static com.excellence.ggz.libparsetsstream.Section.ProgramAssociationSectionManager.PAT_PID;
+import static com.excellence.ggz.libparsetsstream.Section.ServiceDescriptionSectionManager.SDT_PID;
+import static java.lang.Integer.toHexString;
+
+import com.excellence.ggz.libparsetsstream.Descriptor.Descriptor;
 import com.excellence.ggz.libparsetsstream.Packet.Packet;
 import com.excellence.ggz.libparsetsstream.Section.entity.Component;
 import com.excellence.ggz.libparsetsstream.Section.entity.ProgramMapSection;
 import com.excellence.ggz.libparsetsstream.Section.entity.Section;
-import com.excellence.ggz.libparsetsstream.Descriptor.Descriptor;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
-
-import static java.lang.Integer.toHexString;
 
 /**
  * @author ggz
@@ -26,7 +28,7 @@ public class ProgramMapSectionManager extends AbstractSectionManager implements 
 
     private static volatile ProgramMapSectionManager sInstance = null;
 
-    private List<Integer> mFilterPidList = new ArrayList<>();
+    private final List<Integer> mFilterPidList = new ArrayList<>();
 
     public static ProgramMapSectionManager getInstance() {
         if (sInstance == null) {
@@ -44,7 +46,7 @@ public class ProgramMapSectionManager extends AbstractSectionManager implements 
 
     @Override
     public void parseSection(Section section) {
-        mLogger.debug(TAG, "[PMS] parse Section");
+        mLogger.debug(TAG, "[PMS] parseSection working...");
 
         int pid = section.getPid();
         int tableId = section.getTableId();
@@ -78,28 +80,10 @@ public class ProgramMapSectionManager extends AbstractSectionManager implements 
                 sectionNumber, lastSectionNumber, pcrPid, programInfoLength,
                 programInfoDescriptorList, componentList, crc32);
 
-        if (mParseListener != null) {
-            mParseListener.onFinish(pms);
+        removeFilterPid(pid);
+        if (mOnParseListener != null) {
+            mOnParseListener.onFinish(pms, pid);
         }
-    }
-
-    public void addFilterPid(int pid) {
-        mFilterPidList.add(pid);
-    }
-
-    public void removeFilterPid(int pid) {
-        // fix ConcurrentModificationException
-        Iterator<Integer> it = mFilterPidList.iterator();
-        while (it.hasNext()) {
-            Integer integer = it.next();
-            if (integer == pid) {
-                it.remove();
-            }
-        }
-    }
-
-    public List<Integer> getFilterPidList() {
-        return mFilterPidList;
     }
 
     @Override
@@ -113,5 +97,32 @@ public class ProgramMapSectionManager extends AbstractSectionManager implements 
                 assembleSection(PMT_TABLE_ID, packet);
             }
         }
+    }
+
+    public void addFilterPid(List<Integer> filterList) {
+        for (int pid : filterList) {
+            if (pid != PAT_PID && pid != SDT_PID) {
+                mFilterPidList.add(pid);
+            }
+        }
+    }
+
+    public void removeFilterPid(int pid) {
+        // fix ConcurrentModificationException
+        Iterator<Integer> it = mFilterPidList.iterator();
+        while (it.hasNext()) {
+            Integer integer = it.next();
+            if (integer == pid) {
+                it.remove();
+            }
+        }
+    }
+
+    public void clearFilterPid() {
+        mFilterPidList.clear();
+    }
+
+    public List<Integer> getFilterPidList() {
+        return mFilterPidList;
     }
 }

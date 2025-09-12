@@ -40,7 +40,7 @@ public class ProgramAssociationSectionManager extends AbstractSectionManager imp
 
     @Override
     public void parseSection(Section section) {
-        mLogger.debug(TAG, "[PAS] parse Section");
+        mLogger.debug(TAG, "[PAS] parseSection working...");
 
         int pid = section.getPid();
         int tableId = section.getTableId();
@@ -67,8 +67,8 @@ public class ProgramAssociationSectionManager extends AbstractSectionManager imp
                 sectionNumber, lastSectionNumber, programList, crc32);
 
         // 处理完成，回调通知状态更新
-        if (mParseListener != null) {
-            mParseListener.onFinish(pas);
+        if (mOnParseListener != null) {
+            mOnParseListener.onFinish(pas, pid);
         }
     }
 
