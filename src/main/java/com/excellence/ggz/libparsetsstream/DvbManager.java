@@ -2,7 +2,6 @@ package com.excellence.ggz.libparsetsstream;
 
 import static com.excellence.ggz.libparsetsstream.Section.ProgramAssociationSectionManager.PAT_PID;
 import static com.excellence.ggz.libparsetsstream.Section.ServiceDescriptionSectionManager.SDT_PID;
-import static java.lang.Integer.toHexString;
 
 import com.excellence.ggz.libparsetsstream.Interface.OnParseListener;
 import com.excellence.ggz.libparsetsstream.Interface.ParesTsStream;
@@ -68,23 +67,22 @@ public class DvbManager implements ParesTsStream {
                 } else {
                     ProgramMapSection pms = (ProgramMapSection) section;
                     mLogger.debug(TAG, "[DVB] onFinish\n" + pms.toString());
-//                    mLogger.debug(TAG, "[PMS] onFinish pid: 0x" + toHexString(pms.getPid()));
                     mPmtList.add(pms);
                 }
             }
         };
 
         // TODO: 耗时操作,业务逻辑
+        // 任务一
         List<Integer> filterList = new ArrayList<>();
         filterList.add(PAT_PID);
         filterList.add(SDT_PID);
-        mLogger.debug(TAG, "[DvbManager] add filter pid: 0x" + toHexString(PAT_PID));
-        mLogger.debug(TAG, "[DvbManager] add filter pid: 0x" + toHexString(SDT_PID));
         mTsManager.filterTsByPid(filePath, filterList, listener);
         if (mPat != null && mSdt != null) {
             programList = formatProgramList(mPat, mSdt);
         }
 
+        // 任务二
         if (mPat != null) {
             mPmtList.clear();
             filterList.clear();
@@ -93,7 +91,6 @@ public class DvbManager implements ParesTsStream {
                 int pmtPid = program.getProgramMapPid();
                 if (programNumber > 0) {
                     filterList.add(pmtPid);
-                    mLogger.debug(TAG, "[DvbManager] add filter pid: 0x" + toHexString(pmtPid));
                 }
             }
             mTsManager.filterTsByPid(filePath, filterList, listener);

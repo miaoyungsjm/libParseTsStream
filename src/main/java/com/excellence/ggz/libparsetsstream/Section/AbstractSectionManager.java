@@ -21,11 +21,10 @@ public abstract class AbstractSectionManager {
     private static final int CRC_16 = 16;
     private static final int CONTINUITY_COUNTER_MAXIMUM = 0xF;
 
-    private HashMap<Integer, Section> mSectionMap = new HashMap<>();
-
-    public OnParseListener mOnParseListener = null;
-
     public final LoggerManager mLogger = LoggerManager.getInstance();
+    public final CompletionSignal mCompletionSignal = CompletionSignal.getInstance();
+    private final HashMap<Integer, Section> mSectionMap = new HashMap<>();
+    public OnParseListener mOnParseListener = null;
 
     public void assembleSection(int inputTableId, Packet packet) {
         int packetLength = packet.getPacketLength();
@@ -111,12 +110,20 @@ public abstract class AbstractSectionManager {
                 mLogger.debug(AbstractSectionManager.class.getName(),
                         "[AbstractSection] assembleSection working...\n" + section.toString());
                 if (section.getRemainLength() == 0) {
+                    mLogger.debug(AbstractSectionManager.class.getName(),
+                            "[AbstractSection] assembleSection finish\n");
                     parseSection(section);
                 }
             }
         } else {
             // todo: adaptation_field()
         }
+    }
+
+    public void clearSection() {
+        mLogger.debug(AbstractSectionManager.class.getName(),
+                "[AbstractSection] clearSection\n");
+        mSectionMap.clear();
     }
 
     public abstract void parseSection(Section section);

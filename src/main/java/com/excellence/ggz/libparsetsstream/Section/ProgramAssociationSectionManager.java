@@ -40,7 +40,7 @@ public class ProgramAssociationSectionManager extends AbstractSectionManager imp
 
     @Override
     public void parseSection(Section section) {
-        mLogger.debug(TAG, "[PAS] parseSection working...");
+        mLogger.debug(TAG, "[PAS] parseSection");
 
         int pid = section.getPid();
         int tableId = section.getTableId();
@@ -66,20 +66,23 @@ public class ProgramAssociationSectionManager extends AbstractSectionManager imp
                 buff, transportStreamId, versionNumber, currentNextIndicator,
                 sectionNumber, lastSectionNumber, programList, crc32);
 
-        // 处理完成，回调通知状态更新
         if (mOnParseListener != null) {
             mOnParseListener.onFinish(pas, pid);
         }
+        // 共享状态更新
+        mCompletionSignal.refreshStatusMap(pid);
     }
 
     @Override
     public void update(Observable o, Object arg) {
         Packet packet = (Packet) arg;
         mLogger.debug(TAG, "[PAS] get packet pid: 0x" + toHexString(packet.getPid()));
-
         if (packet.getPid() == PAT_PID) {
-            mLogger.debug(TAG, "[PAS] assembleSection");
-            assembleSection(PAT_TABLE_ID, packet);
+            boolean isCompleted = mCompletionSignal.checkStatusMap(PAT_PID);
+            if (!isCompleted) {
+                mLogger.debug(TAG, "[PAS] assembleSection");
+                assembleSection(PAT_TABLE_ID, packet);
+            }
         }
     }
 }

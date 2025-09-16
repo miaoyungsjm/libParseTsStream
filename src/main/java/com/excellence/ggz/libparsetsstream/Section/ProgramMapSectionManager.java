@@ -10,8 +10,6 @@ import com.excellence.ggz.libparsetsstream.Section.entity.Component;
 import com.excellence.ggz.libparsetsstream.Section.entity.ProgramMapSection;
 import com.excellence.ggz.libparsetsstream.Section.entity.Section;
 
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
@@ -27,8 +25,6 @@ public class ProgramMapSectionManager extends AbstractSectionManager implements 
     private static final int CRC_32 = 4;
 
     private static volatile ProgramMapSectionManager sInstance = null;
-
-    private final List<Integer> mFilterPidList = new ArrayList<>();
 
     public static ProgramMapSectionManager getInstance() {
         if (sInstance == null) {
@@ -46,7 +42,7 @@ public class ProgramMapSectionManager extends AbstractSectionManager implements 
 
     @Override
     public void parseSection(Section section) {
-        mLogger.debug(TAG, "[PMS] parseSection working...");
+        mLogger.debug(TAG, "[PMS] parseSection");
 
         int pid = section.getPid();
         int tableId = section.getTableId();
@@ -80,49 +76,22 @@ public class ProgramMapSectionManager extends AbstractSectionManager implements 
                 sectionNumber, lastSectionNumber, pcrPid, programInfoLength,
                 programInfoDescriptorList, componentList, crc32);
 
-        removeFilterPid(pid);
         if (mOnParseListener != null) {
             mOnParseListener.onFinish(pms, pid);
         }
+        mCompletionSignal.refreshStatusMap(pid);
     }
 
     @Override
     public void update(Observable o, Object arg) {
         Packet packet = (Packet) arg;
         mLogger.debug(TAG, "[PMS] get packet pid: 0x" + toHexString(packet.getPid()));
-
-        for (int i = 0; i < mFilterPidList.size(); i++) {
-            if (packet.getPid() == mFilterPidList.get(i)) {
+        if (packet.getPid() != PAT_PID && packet.getPid() != SDT_PID) {
+            boolean isCompleted = mCompletionSignal.checkStatusMap(packet.getPid());
+            if (!isCompleted) {
                 mLogger.debug(TAG, "[PMS] assembleSection pid: 0x" + toHexString(packet.getPid()));
                 assembleSection(PMT_TABLE_ID, packet);
             }
         }
-    }
-
-    public void addFilterPid(List<Integer> filterList) {
-        for (int pid : filterList) {
-            if (pid != PAT_PID && pid != SDT_PID) {
-                mFilterPidList.add(pid);
-            }
-        }
-    }
-
-    public void removeFilterPid(int pid) {
-        // fix ConcurrentModificationException
-        Iterator<Integer> it = mFilterPidList.iterator();
-        while (it.hasNext()) {
-            Integer integer = it.next();
-            if (integer == pid) {
-                it.remove();
-            }
-        }
-    }
-
-    public void clearFilterPid() {
-        mFilterPidList.clear();
-    }
-
-    public List<Integer> getFilterPidList() {
-        return mFilterPidList;
     }
 }

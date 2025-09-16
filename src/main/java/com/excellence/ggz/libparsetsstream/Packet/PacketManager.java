@@ -3,13 +3,12 @@ package com.excellence.ggz.libparsetsstream.Packet;
 import static java.lang.Integer.toHexString;
 
 import com.excellence.ggz.libparsetsstream.Logger.LoggerManager;
+import com.excellence.ggz.libparsetsstream.Section.CompletionSignal;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Observable;
 
@@ -30,8 +29,6 @@ public class PacketManager extends Observable {
     private final LoggerManager mLogger;
     private int mPacketStartPosition = -1;
     private int mPacketLength = -1;
-    private boolean mIsInterrupt = false;
-    private final List<Integer> mFilterPidList = new ArrayList<>();
 
     public static PacketManager getInstance() {
         if (sInstance == null) {
@@ -136,9 +133,8 @@ public class PacketManager extends Observable {
     }
 
     public void filterPacket(String filePath, List<Integer> filterList) {
-        mFilterPidList.clear();
-        mFilterPidList.addAll(filterList);
-        mIsInterrupt = false;
+        CompletionSignal completionSignal = CompletionSignal.getInstance();
+        completionSignal.addFilterList(filterList);
 
         if (mPacketLength == -1 || mPacketStartPosition == -1) {
             mLogger.error(TAG, "[filterPacketByPid] packetLength packetStartPosition IllegalArgument");
@@ -160,13 +156,11 @@ public class PacketManager extends Observable {
             byte[] buff = new byte[packetLength * 50];
             int len;
             while ((len = bis.read(buff)) != -1) {
-                if (mIsInterrupt) {
-                    break;
-                }
                 for (int i = 0; i < len / packetLength; i++) {
-                    if (mIsInterrupt) {
+                    if (completionSignal.isCompleted()) {
                         break;
                     }
+
                     byte[] onePacket = new byte[packetLength];
                     System.arraycopy(buff, packetLength * i, onePacket, 0, packetLength);
                     if (onePacket[0] == PACKET_HEADER_SYNC_BYTE) {
@@ -176,39 +170,28 @@ public class PacketManager extends Observable {
                             continue;
                         }
 
-                        for (int j = 0; j < mFilterPidList.size(); j++) {
-                            if (packet.getPid() == mFilterPidList.get(j)) {
+                        for (int j = 0; j < filterList.size(); j++) {
+                            if (packet.getPid() == filterList.get(j)) {
+
                                 // Publisher 发布
                                 mLogger.debug(TAG, "[filterPacket] Publisher submit packetPid: 0x" + toHexString(packet.getPid()));
                                 setChanged();
                                 notifyObservers(packet);
+
                             }
                         }
                     } else {
-                        mLogger.debug(TAG, "[filterPacketByPid] error: stream is unstable, need to get new start position");
+                        mLogger.error(TAG, "[filterPacketByPid] error: stream is unstable, need to get new start position");
                     }
+                }
+                if (completionSignal.isCompleted()) {
+                    break;
                 }
             }
             bis.close();
             mLogger.debug(TAG, "[filterPacket] file close\n");
         } catch (IOException e) {
             e.printStackTrace();
-        }
-    }
-
-    public void removeFilterPid(int pid) {
-        mLogger.debug(TAG, "[PacketManager] removeFilterPid: 0x" + toHexString(pid));
-        // fix ConcurrentModificationException
-        Iterator<Integer> it = mFilterPidList.iterator();
-        while (it.hasNext()) {
-            Integer integer = it.next();
-            if (integer == pid) {
-                it.remove();
-            }
-        }
-        if (mFilterPidList.isEmpty()) {
-            mLogger.debug(TAG, "[PacketManager] mIsInterrupt = true\n");
-            mIsInterrupt = true;
         }
     }
 

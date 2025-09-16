@@ -40,7 +40,7 @@ public class ServiceDescriptionSectionManager extends AbstractSectionManager imp
 
     @Override
     public void parseSection(Section section) {
-        mLogger.debug(TAG, "[SDS] parseSection working...");
+        mLogger.debug(TAG, "[SDS] parseSection");
 
         int pid = section.getPid();
         int tableId = section.getTableId();
@@ -71,16 +71,19 @@ public class ServiceDescriptionSectionManager extends AbstractSectionManager imp
         if (mOnParseListener != null) {
             mOnParseListener.onFinish(sds, pid);
         }
+        mCompletionSignal.refreshStatusMap(pid);
     }
 
     @Override
     public void update(Observable o, Object arg) {
         Packet packet = (Packet) arg;
         mLogger.debug(TAG, "[SDS] get packet pid: 0x" + toHexString(packet.getPid()));
-
         if (packet.getPid() == SDT_PID) {
-            mLogger.debug(TAG, "[SDS] assembleSection");
-            assembleSection(SDT_TABLE_ID, packet);
+            boolean isCompleted = mCompletionSignal.checkStatusMap(SDT_PID);
+            if (!isCompleted) {
+                mLogger.debug(TAG, "[SDS] assembleSection");
+                assembleSection(SDT_TABLE_ID, packet);
+            }
         }
     }
 }
