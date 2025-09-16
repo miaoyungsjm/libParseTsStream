@@ -82,6 +82,13 @@ public class DvbManager implements ParesTsStream {
             programList = formatProgramList(mPat, mSdt);
         }
 
+        // TODO: 给线程时间来释放数据
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         // 任务二
         if (mPat != null) {
             mPmtList.clear();

@@ -1,5 +1,7 @@
 package com.excellence.ggz.libparsetsstream.Packet;
 
+import static com.excellence.ggz.libparsetsstream.Section.ProgramAssociationSectionManager.PAT_PID;
+import static com.excellence.ggz.libparsetsstream.Section.ServiceDescriptionSectionManager.SDT_PID;
 import static java.lang.Integer.toHexString;
 
 import com.excellence.ggz.libparsetsstream.Logger.LoggerManager;
@@ -10,13 +12,14 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Observable;
+import java.util.concurrent.Flow;
+import java.util.concurrent.SubmissionPublisher;
 
 /**
  * @author ggz
  * @date 2021/3/8
  */
-public class PacketManager extends Observable {
+public class PacketManager {
     private static final String TAG = PacketManager.class.getName();
     private static final int PACKET_HEADER_SYNC_BYTE = 0x47;
     private static final int MATCH_TIMES = 10;
@@ -27,6 +30,10 @@ public class PacketManager extends Observable {
     private static volatile PacketManager sInstance = null;
 
     private final LoggerManager mLogger;
+    private SubmissionPublisher<Packet> mPasPublisher;
+    private SubmissionPublisher<Packet> mSdsPublisher;
+    private SubmissionPublisher<Packet> mPmsPublisher;
+
     private int mPacketStartPosition = -1;
     private int mPacketLength = -1;
 
@@ -174,9 +181,7 @@ public class PacketManager extends Observable {
                             if (packet.getPid() == filterList.get(j)) {
 
                                 // Publisher 发布
-                                mLogger.debug(TAG, "[filterPacket] Publisher submit packetPid: 0x" + toHexString(packet.getPid()));
-                                setChanged();
-                                notifyObservers(packet);
+                                publish(packet);
 
                             }
                         }
@@ -193,6 +198,47 @@ public class PacketManager extends Observable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 异步非阻塞多消费者情景，消费者的消费速率不同且随机
+     * 为每个消费者创建独立的发布者，进行分发，独立缓冲区。
+     * 每个消费者根据自身消费能力自行 request 控制速率
+     */
+    private void publish(Packet packet) {
+        int pid = packet.getPid();
+        if (pid == PAT_PID) {
+            mLogger.debug(TAG, "[filterPacket] Pas Publisher submit packetPid: 0x" + toHexString(pid));
+            mPasPublisher.submit(packet);
+        } else if (pid == SDT_PID) {
+            mLogger.debug(TAG, "[filterPacket] Sds Publisher submit packetPid: 0x" + toHexString(pid));
+            mSdsPublisher.submit(packet);
+        } else {
+            mLogger.debug(TAG, "[filterPacket] Pms Publisher submit packetPid: 0x" + toHexString(pid));
+            mPmsPublisher.submit(packet);
+        }
+    }
+
+    public void subscribe(Flow.Subscriber<Packet> subscriber, int pid) {
+        if (pid == PAT_PID) {
+            mPasPublisher.subscribe(subscriber);
+        } else if (pid == SDT_PID) {
+            mSdsPublisher.subscribe(subscriber);
+        } else {
+            mPmsPublisher.subscribe(subscriber);
+        }
+    }
+
+    public void open() {
+        mPasPublisher = new SubmissionPublisher<>();
+        mSdsPublisher = new SubmissionPublisher<>();
+        mPmsPublisher = new SubmissionPublisher<>();
+    }
+
+    public void close() {
+        mPasPublisher.close();
+        mSdsPublisher.close();
+        mPmsPublisher.close();
     }
 
     public int getPacketStartPosition() {

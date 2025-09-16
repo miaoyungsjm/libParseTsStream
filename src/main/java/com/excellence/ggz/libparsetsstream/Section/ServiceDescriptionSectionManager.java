@@ -8,14 +8,13 @@ import com.excellence.ggz.libparsetsstream.Section.entity.Service;
 import com.excellence.ggz.libparsetsstream.Section.entity.ServiceDescriptionSection;
 
 import java.util.List;
-import java.util.Observable;
-import java.util.Observer;
+import java.util.concurrent.Flow;
 
 /**
  * @author ggz
  * @date 2021/3/22
  */
-public class ServiceDescriptionSectionManager extends AbstractSectionManager implements Observer {
+public class ServiceDescriptionSectionManager extends AbstractSectionManager implements Flow.Subscriber<Packet> {
     private static final String TAG = ServiceDescriptionSectionManager.class.getName();
     public static final int SDT_PID = 0x0011;
     public static final int SDT_TABLE_ID = 0x42;
@@ -23,6 +22,8 @@ public class ServiceDescriptionSectionManager extends AbstractSectionManager imp
     private static final int CRC_32 = 4;
 
     private static volatile ServiceDescriptionSectionManager sInstance = null;
+
+    private Flow.Subscription mSubscription;
 
     private ServiceDescriptionSectionManager() {
     }
@@ -75,15 +76,34 @@ public class ServiceDescriptionSectionManager extends AbstractSectionManager imp
     }
 
     @Override
-    public void update(Observable o, Object arg) {
-        Packet packet = (Packet) arg;
-        mLogger.debug(TAG, "[SDS] get packet pid: 0x" + toHexString(packet.getPid()));
+    public void onSubscribe(Flow.Subscription subscription) {
+        mLogger.debug(TAG, "[SDS] onSubscribe");
+        mSubscription = subscription;
+        mSubscription.request(1);
+    }
+
+    @Override
+    public void onNext(Packet packet) {
+        mLogger.debug(TAG, "[SDS] onNext get packet pid: 0x" + toHexString(packet.getPid()));
         if (packet.getPid() == SDT_PID) {
             boolean isCompleted = mCompletionSignal.checkStatusMap(SDT_PID);
             if (!isCompleted) {
-                mLogger.debug(TAG, "[SDS] assembleSection");
+                mLogger.debug(TAG, "[SDS] onNext assembleSection");
                 assembleSection(SDT_TABLE_ID, packet);
             }
         }
+        mSubscription.request(1);
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+        mLogger.error(TAG, throwable.getMessage());
+    }
+
+    @Override
+    public void onComplete() {
+        mLogger.debug(TAG, "[SDS] onComplete");
+        mSubscription.cancel();
+        clearSection();
     }
 }

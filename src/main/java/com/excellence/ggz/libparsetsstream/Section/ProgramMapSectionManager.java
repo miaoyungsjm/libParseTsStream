@@ -11,20 +11,21 @@ import com.excellence.ggz.libparsetsstream.Section.entity.ProgramMapSection;
 import com.excellence.ggz.libparsetsstream.Section.entity.Section;
 
 import java.util.List;
-import java.util.Observable;
-import java.util.Observer;
+import java.util.concurrent.Flow;
 
 /**
  * @author ggz
  * @date 2021/3/22
  */
-public class ProgramMapSectionManager extends AbstractSectionManager implements Observer {
+public class ProgramMapSectionManager extends AbstractSectionManager implements Flow.Subscriber<Packet> {
     private static final String TAG = ProgramMapSectionManager.class.getName();
     public static final int PMT_TABLE_ID = 0x02;
     private static final int PMS_SECTION_HEADER = 9;
     private static final int CRC_32 = 4;
 
     private static volatile ProgramMapSectionManager sInstance = null;
+
+    private Flow.Subscription mSubscription;
 
     public static ProgramMapSectionManager getInstance() {
         if (sInstance == null) {
@@ -83,15 +84,34 @@ public class ProgramMapSectionManager extends AbstractSectionManager implements 
     }
 
     @Override
-    public void update(Observable o, Object arg) {
-        Packet packet = (Packet) arg;
-        mLogger.debug(TAG, "[PMS] get packet pid: 0x" + toHexString(packet.getPid()));
+    public void onSubscribe(Flow.Subscription subscription) {
+        mLogger.debug(TAG, "[PMS] onSubscribe");
+        mSubscription = subscription;
+        mSubscription.request(1);
+    }
+
+    @Override
+    public void onNext(Packet packet) {
+        mLogger.debug(TAG, "[PMS] onNext get packet pid: 0x" + toHexString(packet.getPid()));
         if (packet.getPid() != PAT_PID && packet.getPid() != SDT_PID) {
             boolean isCompleted = mCompletionSignal.checkStatusMap(packet.getPid());
             if (!isCompleted) {
-                mLogger.debug(TAG, "[PMS] assembleSection pid: 0x" + toHexString(packet.getPid()));
+                mLogger.debug(TAG, "[PMS] onNext assembleSection pid: 0x" + toHexString(packet.getPid()));
                 assembleSection(PMT_TABLE_ID, packet);
             }
         }
+        mSubscription.request(1);
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+        mLogger.error(TAG, throwable.getMessage());
+    }
+
+    @Override
+    public void onComplete() {
+        mLogger.debug(TAG, "[PMS] onComplete");
+        mSubscription.cancel();
+        clearSection();
     }
 }

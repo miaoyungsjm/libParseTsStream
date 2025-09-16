@@ -8,14 +8,13 @@ import com.excellence.ggz.libparsetsstream.Section.entity.ProgramAssociationSect
 import com.excellence.ggz.libparsetsstream.Section.entity.Section;
 
 import java.util.List;
-import java.util.Observable;
-import java.util.Observer;
+import java.util.concurrent.Flow;
 
 /**
  * @author ggz
  * @date 2021/3/22
  */
-public class ProgramAssociationSectionManager extends AbstractSectionManager implements Observer {
+public class ProgramAssociationSectionManager extends AbstractSectionManager implements Flow.Subscriber<Packet> {
     private static final String TAG = ProgramAssociationSectionManager.class.getName();
     public static final int PAT_PID = 0x0000;
     public static final int PAT_TABLE_ID = 0x00;
@@ -23,6 +22,8 @@ public class ProgramAssociationSectionManager extends AbstractSectionManager imp
     private static final int CRC_32 = 4;
 
     private static volatile ProgramAssociationSectionManager sInstance = null;
+
+    private Flow.Subscription mSubscription;
 
     private ProgramAssociationSectionManager() {
     }
@@ -74,15 +75,34 @@ public class ProgramAssociationSectionManager extends AbstractSectionManager imp
     }
 
     @Override
-    public void update(Observable o, Object arg) {
-        Packet packet = (Packet) arg;
-        mLogger.debug(TAG, "[PAS] get packet pid: 0x" + toHexString(packet.getPid()));
+    public void onSubscribe(Flow.Subscription subscription) {
+        mLogger.debug(TAG, "[PAS] onSubscribe");
+        mSubscription = subscription;
+        mSubscription.request(1);
+    }
+
+    @Override
+    public void onNext(Packet packet) {
+        mLogger.debug(TAG, "[PAS] onNext get packet pid: 0x" + toHexString(packet.getPid()));
         if (packet.getPid() == PAT_PID) {
             boolean isCompleted = mCompletionSignal.checkStatusMap(PAT_PID);
             if (!isCompleted) {
-                mLogger.debug(TAG, "[PAS] assembleSection");
+                mLogger.debug(TAG, "[PAS] onNext assembleSection");
                 assembleSection(PAT_TABLE_ID, packet);
             }
         }
+        mSubscription.request(1);
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+        mLogger.error(TAG, throwable.getMessage());
+    }
+
+    @Override
+    public void onComplete() {
+        mLogger.debug(TAG, "[PAS] onComplete");
+        mSubscription.cancel();
+        clearSection();
     }
 }

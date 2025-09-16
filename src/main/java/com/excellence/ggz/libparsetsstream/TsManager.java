@@ -1,5 +1,9 @@
 package com.excellence.ggz.libparsetsstream;
 
+import static com.excellence.ggz.libparsetsstream.Section.ProgramAssociationSectionManager.PAT_PID;
+import static com.excellence.ggz.libparsetsstream.Section.ProgramMapSectionManager.PMT_TABLE_ID;
+import static com.excellence.ggz.libparsetsstream.Section.ServiceDescriptionSectionManager.SDT_PID;
+
 import com.excellence.ggz.libparsetsstream.Interface.OnParseListener;
 import com.excellence.ggz.libparsetsstream.Logger.LoggerManager;
 import com.excellence.ggz.libparsetsstream.Packet.PacketManager;
@@ -57,20 +61,15 @@ public class TsManager {
         mSdsManager.setOnParseListener(callback);
         mPmsManager.setOnParseListener(callback);
 
-        // Observable - Observer
-        mPacketManager.addObserver(mPasManager);
-        mPacketManager.addObserver(mSdsManager);
-        mPacketManager.addObserver(mPmsManager);
+        // Publisher - Subscriber
+        mPacketManager.open();
+        mPacketManager.subscribe(mPasManager, PAT_PID);
+        mPacketManager.subscribe(mSdsManager, SDT_PID);
+        mPacketManager.subscribe(mPmsManager, PMT_TABLE_ID);
 
         mPacketLength = mPacketManager.matchPacketLength(filePath);
         mPacketManager.filterPacket(filePath, filterList);
 
-        mPacketManager.deleteObserver(mPasManager);
-        mPacketManager.deleteObserver(mSdsManager);
-        mPacketManager.deleteObserver(mPmsManager);
-        // 释放资源
-        mPasManager.clearSection();
-        mSdsManager.clearSection();
-        mPmsManager.clearSection();
+        mPacketManager.close();
     }
 }
